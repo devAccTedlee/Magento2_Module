@@ -1,0 +1,127 @@
+<?php
+/**
+ * Copyright © 2013-2017 Magento, Inc. All rights reserved.
+ * See COPYING.txt for license details.
+ */
+
+// @codingStandardsIgnoreFile
+
+/** @var $block \Magento\Checkout\Block\Cart\Sidebar */
+
+$obj = \Magento\Framework\App\ObjectManager::getInstance();
+
+// Getting the object managers dependencies
+$quote = $obj->get('Magento\Checkout\Model\Session')->getQuote();
+$helper = $obj->get('\Magento\Checkout\Helper\Cart');
+
+// Get quote and cart items collection
+$quote = $helper->getQuote();
+$quoteitems = $quote->getAllVisibleItems();
+
+// Get cart contents
+$cart= $helper->getCart();
+
+// Getting the subtotal of the cart
+$subtotal = $quote->getBaseSubtotal();
+$imageHelperFactory = $obj->create('\Magento\Catalog\Helper\ImageFactory');
+$messageManager = $obj->create('\Magento\Framework\Message\ManagerInterface');
+$confHelper = $obj->create('\Magento\Catalog\Helper\Product\Configuration');
+$cartHelper = $obj->create('\Magento\Checkout\Helper\Cart');
+$params = [
+	'max_length' => 55,
+	'cut_replacer' => ' <a href="#" class="dots tooltip toggle" onclick="return false">...</a>'
+];
+
+$FormKey = $obj->get('Magento\Framework\Data\Form\FormKey');
+
+$_n41 = $this->helper('Nouvolution\N41\Helper\Data');
+$n41common = $_n41->_common;
+$n41product = $_n41->_products;
+?>
+<div data-block="minicart-popup" class="minicart-popup-wrapper">
+<!--	<form class="shopping" action="--><?php //echo $block->getUrl('checkout', ['_secure' => true]); ?><!--">-->
+	<form class="shopping" onsubmit="return false;">
+		<fieldset>
+		  <table>
+            <tbody>
+            <?php foreach ($quoteitems as $item): ?>
+				<?php
+                    $product = $obj->create('Magento\Catalog\Model\Product')->load($item->getProductId());
+                    $grouped = $n41product->GetParentProductFromSimple($product);
+                    $productUrl = $grouped ? $grouped->getProductUrl() : $product->getProductUrl();
+				?>
+				<tr class="item-data-holder" data-id="<?php print $block->escapeHtml($item->getId()); ?>" data-price="<?php print $block->escapeHtml($item->getPrice()); ?>">
+				  <td>
+					<a href="<?= $block->escapeHtml($productUrl); ?>">
+                        <?php
+                            $imageUrl = $imageHelperFactory->create()->init($product, 'product_thumbnail_image')->getUrl();
+                            if(strpos($imageUrl, 'placeholder')){
+                                $imageUrl = $n41product->GetProductImage($grouped, $width = 50, $height = 75)["imgUrl"];
+                            }
+                        ?>
+                        <img src="<?= $imageUrl; ?>" alt="shop-cart_img1">
+                    </a>
+				  </td>
+				  <td>
+					<a class="name-product" href="<?= $block->escapeHtml($productUrl); ?>">
+                        <?= $block->escapeHtml($item->getName()); ?>
+                    </a>
+					<ul>
+                        <?php if($grouped): ?>
+                            <li><?= __('Color:'); ?> <?= $n41product->GetProductAttribute($product, 'color'); ?></li>
+                            <?php if($n41common->IsPrepack($grouped)): ?>
+                                <li><?= __('Pack:'); ?> <?php $n41product->GetPrepackBox($grouped);?></li>
+                            <?php endif; ?>
+                        <?php endif; ?>
+
+                        <?php
+                        if(!$product->isSalable()){
+                            echo "<div class='stock-warning'>OUT OF STOCK</div>";
+                        }
+                        $availableQty = $product->getExtensionAttributes()->getStockItem()->getQty();
+                        if($item->getQty() > $availableQty)
+                            echo "<div class='stock-warning'>The requested quantity is not available.<br/>Available Quantity : ".$availableQty."</div>";
+                        ?>
+					</ul>
+					<a href="#" title="<?php echo $block->escapeHtml(__('Remove item')); ?>" class="action action-delete" data-form-key="<?php print $block->escapeHtml($FormKey->getFormKey()); ?>" data-post-ajax='<?php /* @escapeNotVerified */ echo $cartHelper->getDeletePostJson($item); ?>'><?= __('Remove'); ?></a>
+				  </td>
+				  <td>
+					<span class="add-gty">
+						<a class="minus" href="#"></a>
+						<input class="qty-input" type="text" value="<?= $item->getQty() * 1; ?>">
+						<a class="plus" href="#"></a>
+					</span>
+					<div class="save-status" style="color:gray;font-size:.8em;">&nbsp;</div>
+				  </td>
+				  <td class="price" data-price="<?php print $item->getPrice(); ?>"><?= $this->helper('Magento\Framework\Pricing\Helper\Data')->currency($item->getPrice() * $item->getQty(),true,false); ?></td>
+				</tr>
+            <?php endforeach; ?>
+                <tr>
+                  <td class="total" colspan="4">
+                    <strong id="minicart-subtotal"><?= __('SUB-TOTAL:'); ?> <span class="minisubtotal"><?= $this->helper('Magento\Framework\Pricing\Helper\Data')->currency($subtotal,true,false); ?></span></strong>
+<!--                    <p>--><?php //echo __('Shipping will be calculated at checkout'); ?><!--</p>-->
+<!--                      <button type="submit" class="button">--><?//= __('PROCEED TO CHECKOUT'); ?><!--</button>-->
+                      <a id="minicart-cart-btn" class="button" target="_top" href="<?= $block->getUrl('checkout/cart', ['_secure' => true]); ?>"><?= __('View Shopping Bag'); ?></a>
+                      <a id="minicart-checkout-btn" class="button" target="_top" href="<?= $block->getUrl('checkout', ['_secure' => true]); ?>"><?= __('Proceed to Checkout'); ?></a>
+
+                  </td>
+                </tr>
+            </tbody>
+		  </table>
+		</fieldset>
+	</form>
+    <script>
+        //window.checkout = <?php /* @escapeNotVerified */ echo \Zend_Json::encode($block->getConfig()); ?>;
+    </script>
+</div>
+
+<script type="text/x-magento-init">
+    {
+        ".minicart-popup-wrapper": {
+            "n41minicart-popup" : {
+                "is_n41_minicart_popup" : true
+            }
+        }
+    }
+</script>
+
